@@ -96,6 +96,7 @@
 #    6.1 Check Apache version
 #    6.2 Check for Apache configurations
 #    6.3 Check if EA3 or EA4 is in use
+#    6.4 Check for MaxChildren errors
 #
 #
 ##############################################################
@@ -159,9 +160,9 @@ clear
 #########
 ##LINUX##
 #########
-#
+#################
 #    2.1 Check OS
-#
+#################
 echo -e "${BOLD}${LBLU}Operating System:${NC}"
 if [[ -a /etc/redhat-release ]] ; then
    cat /etc/redhat-release ;
@@ -175,22 +176,22 @@ if [[ -a /etc/debian_version ]] ; then
    cat /etc/debian_version ;
 fi
 echo ""
-#
+#########################
 #    2.2 Check Disk Space
-#
+#########################
 echo -e "${BOLD}${LBLU}Disk Usage:${NC}"
 df -h
 echo ""
-#
+#####################
 #    2.3 Check Memory
-#
+#####################
 echo -e "${BOLD}${LBLU}Memory Usage:${NC}"
 free -h
 echo -e "${BOLD}${LBLU}Potential OOM notificaitons:${NC} $(grep Kill /var/log/messages|wc -l)"
 echo ""
-#
+#####################
 #    2.7 Check uptime
-#
+#####################
 echo -e "${BOLD}${LBLU}Uptime:${NC}"
 uptime
 echo ""
@@ -200,15 +201,15 @@ echo ""
 ##########
 ##APACHE##
 ##########
-#
+#############################
 #    6.1 Check Apache version
-#
+#############################
 echo -e "${BOLD}${LBLU}Apache Version:${NC}"
 httpd -V|grep version|awk '{print $3,$4}'
 echo ""
-#
+########################################
 #    6.2 Check for Apache configurations
-#
+########################################
 if [[ -s /usr/local/apache/conf/includes/pre_virtualhost_global.conf ]];
    then echo -e "${BOLD}${LBLU}Contents of /usr/local/apache/conf/includes/pre_virtualhost_global.conf:${NC}";
       cat /usr/local/apache/conf/includes/pre_virtualhost_global.conf;
@@ -221,23 +222,37 @@ if [[ -s /usr/local/apache/conf/includes/pre_virtualhost_2.conf ]];
    else echo -e "${BOLD}${LBLU}No Apache 2 configurations in place.${NC}";
 fi
 echo ""
-#
+######################################
 #    6.3 Check if EA3 or EA4 is in use
+######################################
+ea_check () {
+  if [[ $(httpd -V|egrep "HTTPD_ROOT=\"\/etc\/apache2") ]];
+    then return
+  fi
+}
 #
-if [[ $(httpd -V|egrep "HTTPD_ROOT=\"\/etc\/apache2") ]];
+#
+#
+if ea_check $1;
    then echo -e "${BOLD} ${BLUB}--EasyApache 4 in use--${NC}";
    else echo -e "${BOLD} ${BLUB}--EasyApache 3 in use--${NC}";
 fi
 echo ""
+#####################################
+#    6.4 Check for MaxChildren errors
+#####################################
+echo -e "${BOLD}${LBLU}Potential MaxChildren limit reached errors:${NC}" $(grep max /opt/cpanel/ea-php*/root/usr/var/log/php-fpm/error.log)
+echo -e "${BOLD}${LBLU}Top 5 offending domains:${NC}"
+grep max /opt/cpanel/ea-php*/root/usr/var/log/php-fpm/error.log|awk '{print $5}'|sort|uniq -c|sort -rnk1
 #
 #
 #
 #######
 ##PHP##
 #######
-#
+########################################################
 #    8.1 Check for current and/or available PHP versions
-#
+########################################################
 if [[ $(httpd -V|egrep "HTTPD_ROOT=\"\/etc\/apache2") ]];
    then echo -e "${BOLD}${LBLU}Inherent PHP version:${NC}:";
       php -v|head -n1|awk '{print$1" "$2}';
